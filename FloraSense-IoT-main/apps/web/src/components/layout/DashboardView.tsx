@@ -13,6 +13,7 @@ import { Sidebar } from './Sidebar';
 import { TopographicPattern } from '../ui/TopographicPattern';
 import { HistoryChart } from '../charts/HistoryChart';
 import { AirHistoryChart } from '../charts/AirHistoryChart';
+import { BatchTelemetryLogs } from '../domain/BatchTelemetryLogs';
 import { LoginView } from './LoginView';
 const safeGetItem = (k: string) => { try { return typeof window !== 'undefined' ? window.localStorage.getItem(k) : null; } catch(e) { return null; } };
 const safeSetItem = (k: string, v: string) => { try { if (typeof window !== 'undefined') window.localStorage.setItem(k, v); } catch(e) {} };
@@ -307,7 +308,11 @@ export function DashboardView() {
                   </p>
                 </div>
               </div>
-            </div>
+          </div>
+
+          {/* --- FILA 3: REGISTRO DE SENSORES SINCRONIZADOS (CADA 5 MINUTOS) --- */}
+          <div className="mt-8 mb-12">
+            <BatchTelemetryLogs deviceId={data.id} />
           </div>
           </main>
       </div>

@@ -146,13 +146,17 @@ export class AppService {
     });
   }
 
-  async getDeviceTelemetry(deviceId: string) {
+  async getDeviceTelemetry(deviceId: string, limit: number = 50, order: 'asc' | 'desc' = 'desc') {
     const data = await this.prisma.telemetry.findMany({
       where: { deviceId },
-      orderBy: { recordedAt: 'asc' },
-      take: 100
+      orderBy: { recordedAt: 'desc' },
+      take: limit
     });
-    return data.map(t => ({
+    
+    // Si se solicitó orden ascendente (para los gráficos temporales), invertimos la lista
+    const result = order === 'asc' ? [...data].reverse() : data;
+
+    return result.map(t => ({
       ...t,
       id: t.id.toString()
     }));

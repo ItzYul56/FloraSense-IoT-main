@@ -82,7 +82,11 @@ export class AppController {
   }
 
   @Get('api/devices/:id/telemetry')
-  async getDeviceTelemetry(@Param('id') deviceId: string) {
-    return this.appService.getDeviceTelemetry(deviceId);
+  async getDeviceTelemetry(
+    @Param('id') deviceId: string,
+    @Query('limit') limit?: number,
+    @Query('order') order?: 'asc' | 'desc',
+  ) {
+    return this.appService.getDeviceTelemetry(deviceId, limit ? Number(limit) : undefined, order);
   }
 }
