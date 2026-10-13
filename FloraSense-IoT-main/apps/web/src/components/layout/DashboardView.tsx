@@ -308,13 +308,14 @@ export function DashboardView() {
                   </p>
                 </div>
               </div>
+            </div>
           </div>
 
           {/* --- FILA 3: REGISTRO DE SENSORES SINCRONIZADOS (CADA 5 MINUTOS) --- */}
           <div className="mt-8 mb-12">
             <BatchTelemetryLogs deviceId={data.id} />
           </div>
-          </main>
+        </main>
       </div>
     </div>
   );
