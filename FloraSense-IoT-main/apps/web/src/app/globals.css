@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #16201B;
+  --color-ink-soft: #46534B;
+
+  --color-canvas: #F4F1E8;
+  --color-canvas-elevated: #FAF8F2;
+  --color-canvas-muted: #EAE5D9;
+
+  --color-moss: #395846;
+  --color-moss-bright: #6D8F72;
+
+  --color-water: #2D7F82;
+  --color-water-soft: #87B9B4;
+
+  --color-clay: #A86443;
+  --color-sand: #D7C5A3;
+
+  --color-warning: #BC7A35;
+  --color-danger: #A14C43;
+
+  --color-line: rgba(22, 32, 27, 0.14);
+  --color-line-strong: rgba(22, 32, 27, 0.28);
+
+  --font-sans: var(--font-manrope), sans-serif;
+  --font-display: var(--font-instrument), serif;
+  --font-mono-data: var(--font-plex-mono), monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+}
+
+@layer base {
+  [data-theme="dark"] {
+    --color-ink: #EAEDE7;
+    --color-ink-soft: #AAB4AC;
+
+    --color-canvas: #101713;
+    --color-canvas-elevated: #17201B;
+    --color-canvas-muted: #1C2821;
+
+    --color-moss: #89A98E;
+    --color-moss-bright: #B3CFB4;
+
+    --color-water: #67B4B6;
+    --color-water-soft: #386F70;
+
+    --color-clay: #D08A64;
+    --color-sand: #A98F68;
+
+    --color-line: rgba(234, 237, 231, 0.11);
+    --color-line-strong: rgba(234, 237, 231, 0.22);
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+  }
+}

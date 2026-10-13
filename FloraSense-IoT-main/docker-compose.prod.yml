@@ -1,0 +1,76 @@
+version: '3.8'
+
+# ==============================================================================
+# FloraSense IoT - Docker Compose para Despliegue en AWS EC2 (Student / Free Tier)
+# Optimizado para t2.micro / t3.micro (1 GB RAM con 2 GB Swap)
+# ==============================================================================
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: smart_irrigation_db
+    restart: unless-stopped
+    command: >
+      postgres -c shared_buffers=128MB
+               -c max_connections=60
+               -c work_mem=4MB
+               -c listen_addresses='*'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-FloraSenseSecure2026!}
+      POSTGRES_DB: ${POSTGRES_DB:-smart_irrigation}
+    ports:
+      # Expone PostgreSQL al exterior para recibir la sincronización de la Raspberry Pi
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: smart_irrigation_mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  api:
+    image: node:20-alpine
+    container_name: smart_irrigation_api
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -c "npx prisma db push --schema=apps/api/prisma/schema.prisma && npm run start:dev -w apps/api"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+      - mosquitto
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-FloraSenseSecure2026!}@postgres:5432/${POSTGRES_DB:-smart_irrigation}?schema=public
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-florasense-2026}
+
+  web:
+    image: node:20-alpine
+    container_name: smart_irrigation_web
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -c "npm run dev -w apps/web"
+    ports:
+      - "3000:3000"
+    environment:
+      # Se deja dinámico o con la IP pública de la EC2
+      - NEXT_PUBLIC_API_URL=http://${EC2_PUBLIC_IP:-localhost}:3001/api/v1
+
+volumes:
+  pgdata:
+  mosquitto_data:
+  mosquitto_log:

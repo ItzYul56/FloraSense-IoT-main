@@ -1,0 +1,24 @@
+{
+  "name": "FloraSense IoT",
+  "short_name": "FloraSense",
+  "description": "Sistema de Riego Inteligente",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F1E1",
+  "theme_color": "#3E5C47",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

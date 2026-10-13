@@ -1,0 +1,144 @@
+// Este es tu archivo de esquema de Prisma,
+// descubre más en la documentación: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Modelos de la Base de Datos
+// ----------------------------------------------------------------------------
+
+/// Representa a un usuario del sistema (puede ser ADMIN o USER)
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         String        @default("USER") // ADMIN o USER
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  pumpCommands PumpCommand[] // Comandos de bomba que este usuario ha solicitado
+}
+
+/// Representa un ESP32 o dispositivo IoT en el campo
+model Device {
+  id              String               @id @default(uuid()) @db.Uuid
+  deviceKey       String               @unique // Clave única para identificar el dispositivo en MQTT
+  name            String
+  description     String?
+  locationLabel   String?
+  status          String               @default("UNKNOWN") // ONLINE, OFFLINE, UNKNOWN
+  mode            String               @default("MANUAL") // MANUAL o AUTO
+  lastSeenAt      DateTime?
+  firmwareVersion String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  telemetries     Telemetry[]          // Historial de telemetría del dispositivo
+  calibrations    SensorCalibration[]  // Configuraciones de calibración
+  rules           IrrigationRule[]     // Reglas automáticas para este dispositivo
+  pumpCommands    PumpCommand[]        // Comandos enviados al dispositivo
+  irrigationEvents IrrigationEvent[]   // Riegos ejecutados
+}
+
+/// Permite guardar valores de calibración de los sensores (ej. suelo seco vs húmedo)
+model SensorCalibration {
+  id         String   @id @default(uuid()) @db.Uuid
+  deviceId   String   @db.Uuid
+  sensorType String   // Ej: SOIL_MOISTURE
+  rawDry     Int      // Valor ADC que representa 0% de humedad
+  rawWet     Int      // Valor ADC que representa 100% de humedad
+  minValid   Int?
+  maxValid   Int?
+  updatedAt  DateTime @updatedAt
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+/// Almacena cada lectura del sensor reportada vía MQTT
+model Telemetry {
+  id              BigInt   @id @default(autoincrement())
+  deviceId        String   @db.Uuid
+  recordedAt      DateTime @default(now())
+  temperatureC    Float?   // DHT22 - Temperatura
+  airHumidityPct  Float?   // DHT22 - Humedad ambiental
+  soilMoistureRaw Int?     // YL-38 - Valor ADC crudo
+  soilMoisturePct Float?   // Humedad de suelo calculada (0-100%)
+  pumpOn          Boolean  // Estado de la bomba (encendida/apagada)
+  fanOn           Boolean  @default(false) // Estado del extractor/ventilador
+  rssi            Int?     // Nivel de señal Wi-Fi
+  payloadVersion  Int
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  // Índice para agilizar búsquedas de histórico por dispositivo
+  @@index([deviceId, recordedAt(sort: Desc)])
+}
+
+/// Define una regla para automatizar el riego
+model IrrigationRule {
+  id                String    @id @default(uuid()) @db.Uuid
+  deviceId          String    @db.Uuid
+  enabled           Boolean   @default(true)
+  startBelowPct     Float     // % de humedad de suelo que dispara el riego
+  stopAbovePct      Float     // % de humedad de suelo que detiene el riego
+  maxRuntimeSeconds Int       // Tiempo máximo de seguridad
+  cooldownSeconds   Int       // Tiempo de espera entre riegos
+  allowedStartTime  String?   // Ej. "18:00"
+  allowedEndTime    String?   // Ej. "06:00"
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+/// Representa una orden de encender/apagar la bomba (de usuario o de regla automática)
+model PumpCommand {
+  id               String    @id @default(uuid()) @db.Uuid
+  deviceId         String    @db.Uuid
+  requestedByUserId String?  @db.Uuid
+  origin           String    // MANUAL, AUTO_RULE
+  action           String    // ON, OFF
+  durationSeconds  Int?      // Cuánto tiempo máximo
+  status           String    @default("PENDING") // PENDING, SENT, ACKNOWLEDGED, FAILED, EXPIRED
+  requestedAt      DateTime  @default(now())
+  acknowledgedAt   DateTime?
+  error            String?
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+}
+
+/// Registro de cada vez que la bomba se encendió y apagó
+model IrrigationEvent {
+  id              String    @id @default(uuid()) @db.Uuid
+  deviceId        String    @db.Uuid
+  commandId       String?   @db.Uuid
+  startedAt       DateTime  @default(now())
+  stoppedAt       DateTime?
+  durationSeconds Int?
+  origin          String    // MANUAL, AUTO_RULE
+  stopReason      String?   // MANUAL, TIMEOUT, AUTO_REACHED
+  triggeredBy     String?   // Nombre de quien lo activó
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+/// Registra acciones importantes por auditoría (seguridad)
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  deviceId    String?  @db.Uuid
+  action      String   // LOGIN, CHANGE_RULE, PUMP_MANUAL
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}

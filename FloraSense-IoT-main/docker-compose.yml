@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: smart_irrigation_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: smart_irrigation
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: smart_irrigation_mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    restart: unless-stopped
+
+  api:
+    image: node:20-alpine
+    container_name: smart_irrigation_api
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -c "if [ -f apps/api/package.json ]; then npm run start:dev -w apps/api; else sleep infinity; fi"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+      - mosquitto
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/smart_irrigation?schema=public
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - PORT=3001
+
+  prisma_studio:
+    image: node:20-alpine
+    container_name: smart_irrigation_studio
+    working_dir: /app/apps/api
+    volumes:
+      - .:/app
+    command: npx prisma studio
+    ports:
+      - "5555:5555"
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/smart_irrigation?schema=public
+
+  web:
+    image: node:20-alpine
+    container_name: smart_irrigation_web
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -c "if [ -f apps/web/package.json ]; then npm run dev -w apps/web; else sleep infinity; fi"
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+
+volumes:
+  pgdata:
+  mosquitto_data:
+  mosquitto_log:
