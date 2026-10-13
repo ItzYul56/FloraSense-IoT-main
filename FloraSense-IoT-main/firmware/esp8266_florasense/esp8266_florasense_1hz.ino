@@ -5,12 +5,12 @@
 // ==============================================================================
 // CONFIGURACIÓN DE RED Y MQTT (RASPBERRY PI LOCAL)
 // ==============================================================================
-const char* ssid = "TU_RED_WIFI";
-const char* password = "TU_PASSWORD_WIFI";
+const char* ssid = "pico";
+const char* password = "Pico1313";
 
 // Dirección IP local de tu Raspberry Pi en la red Wi-Fi (ej: 192.168.1.100)
 // Si la Raspberry Pi está en modo Punto de Acceso (AP), suele ser 192.168.4.1
-const char* mqtt_server = "IP_LOCAL_DE_TU_RASPBERRY_PI"; 
+const char* mqtt_server = "10.23.178.173"; 
 const int mqtt_port = 1883;
 
 // Identificador único del dispositivo (debe coincidir con la base de datos)

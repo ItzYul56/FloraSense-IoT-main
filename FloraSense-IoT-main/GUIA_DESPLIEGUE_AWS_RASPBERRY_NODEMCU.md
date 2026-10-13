@@ -231,7 +231,7 @@ La Raspberry Pi actúa como el **cerebro local de alta frecuencia**. Debe:
 ---
 
 ### Paso 3.1: Instalar PostgreSQL y Mosquitto en la Raspberry Pi
-Conéctate por SSH a tu Raspberry Pi (`ssh pi@<IP_RASPBERRY>`) y ejecuta:
+Conéctate por SSH a tu Raspberry Pi (`ssh iot@<IP_RASPBERRY>`) y ejecuta:
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -255,10 +255,8 @@ sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
 # 2. Crear la base de datos smart_irrigation
 sudo -u postgres psql -c "CREATE DATABASE smart_irrigation OWNER postgres;"
 
-# 3. Clonar el repositorio en la Raspberry Pi
-cd /home/pi
-git clone https://github.com/V333I/FloraSense-IoT.git
-cd FloraSense-IoT
+# 3. Entrar a la carpeta del proyecto en la Raspberry Pi
+cd /home/iot/FloraSense-IoT-main/FloraSense-IoT-main
 
 # 4. Cargar el esquema completo de tablas
 sudo -u postgres psql -d smart_irrigation -f esquema_base_datos.sql
@@ -343,9 +341,9 @@ After=network.target mosquitto.service postgresql.service
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/FloraSense-IoT/scripts/rpi
-ExecStart=/usr/bin/python3 /home/pi/FloraSense-IoT/scripts/rpi/rpi_mqtt_collector.py
+User=iot
+WorkingDirectory=/home/iot/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi
+ExecStart=/usr/bin/python3 /home/iot/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/rpi_mqtt_collector.py
 Restart=always
 RestartSec=5
 
@@ -362,11 +360,11 @@ sudo systemctl enable --now florasense-collector
 Si prefieres no usar Wi-Fi entre el NodeMCU y la Raspberry Pi, conecta el NodeMCU por USB al puerto de la Raspberry Pi y usa [`rpi_serial_collector.py`](file:///c:/Users/yulia/Downloads/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/rpi_serial_collector.py):
 
 ```bash
-# Dar permisos de lectura serial al usuario pi
-sudo usermod -a -G dialout pi
+# Dar permisos de lectura serial al usuario iot
+sudo usermod -a -G dialout iot
 
 # Probar la lectura en vivo
-python3 /home/pi/FloraSense-IoT/scripts/rpi/rpi_serial_collector.py
+python3 /home/iot/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/rpi_serial_collector.py
 ```
 
 ### Verificación del Registro a 1 Hz en la Base de Datos Local
@@ -386,7 +384,7 @@ El script [`florasense_sync_to_aws.py`](file:///c:/Users/yulia/Downloads/FloraSe
 Edita el archivo del servicio en la Raspberry Pi:
 
 ```bash
-sudo cp /home/pi/FloraSense-IoT/scripts/rpi/florasense-sync.service /etc/systemd/system/
+sudo cp /home/iot/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/florasense-sync.service /etc/systemd/system/
 sudo nano /etc/systemd/system/florasense-sync.service
 ```
 
@@ -448,7 +446,7 @@ Para que esta orden viaje de AWS a la Raspberry Pi física y accione el relé, c
 
 En la Raspberry Pi, copia la configuración:
 ```bash
-sudo cp /home/pi/FloraSense-IoT/scripts/rpi/mosquitto-bridge-aws.conf /etc/mosquitto/conf.d/bridge-aws.conf
+sudo cp /home/iot/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/mosquitto-bridge-aws.conf /etc/mosquitto/conf.d/bridge-aws.conf
 sudo nano /etc/mosquitto/conf.d/bridge-aws.conf
 ```
 

@@ -7,20 +7,29 @@ import { Droplets, Clock, Power, Loader2 } from 'lucide-react';
 
 export function PumpControl({ deviceId, pumpOn, lastCycle, onRefresh }: { deviceId: string, pumpOn: boolean, lastCycle?: string, onRefresh?: () => void }) {
   const [loading, setLoading] = useState(false);
+  const [optimisticPumpOn, setOptimisticPumpOn] = useState<boolean | null>(null);
+
+  const effectivePumpOn = optimisticPumpOn !== null ? optimisticPumpOn : pumpOn;
+
+  React.useEffect(() => {
+    setOptimisticPumpOn(null);
+  }, [pumpOn]);
 
   const togglePump = async () => {
-    const action = pumpOn ? 'off' : 'on';
+    const nextState = !effectivePumpOn;
+    const action = nextState ? 'on' : 'off';
+    setOptimisticPumpOn(nextState);
     setLoading(true);
     try {
       await apiFetch(`/api/devices/${deviceId}/pump/${action}`, {
         method: 'POST',
       });
-      // Esperamos medio segundo para que el simulador mande la telemetría nueva
       setTimeout(() => {
         if (onRefresh) onRefresh();
       }, 500);
     } catch (e) {
       console.error(e);
+      setOptimisticPumpOn(pumpOn);
     } finally {
       setLoading(false);
     }
@@ -28,7 +37,7 @@ export function PumpControl({ deviceId, pumpOn, lastCycle, onRefresh }: { device
 
   return (
     <div className="border border-line rounded-[32px] p-8 relative overflow-hidden bg-canvas-elevated shadow-sm">
-      {pumpOn && (
+      {effectivePumpOn && (
         <div className="absolute inset-0 bg-water/5 animate-pulse" />
       )}
       

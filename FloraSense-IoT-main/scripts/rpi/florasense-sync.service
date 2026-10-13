@@ -5,25 +5,24 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/FloraSense-IoT/scripts/rpi
-# Si usas entorno virtual venv: /home/pi/venv/bin/python3
-ExecStart=/usr/bin/python3 /home/pi/FloraSense-IoT/scripts/rpi/florasense_sync_to_aws.py
+User=iot
+WorkingDirectory=/home/iot/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi
+ExecStart=/usr/bin/python3 /home/iot/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/florasense_sync_to_aws.py
 Restart=always
 RestartSec=10
 
-# Variables de entorno opcionales (puedes ajustar el intervalo aquí: 300 para 5 min, 5 para 5 seg)
-Environment="SYNC_INTERVAL_SECONDS=300"
-Environment="AWS_DB_HOST=TU_IP_PUBLICA_EC2_AWS"
-Environment="AWS_DB_PORT=5432"
-Environment="AWS_DB_NAME=smart_irrigation"
-Environment="AWS_DB_USER=postgres"
-Environment="AWS_DB_PASS=FloraSenseSecure2026!"
-Environment="LOCAL_DB_HOST=localhost"
-Environment="LOCAL_DB_PORT=5432"
-Environment="LOCAL_DB_NAME=smart_irrigation"
-Environment="LOCAL_DB_USER=postgres"
-Environment="LOCAL_DB_PASS=postgres"
+# Variables de entorno (sin comillas para evitar errores de sintaxis en systemd)
+Environment=SYNC_INTERVAL_SECONDS=300
+Environment=AWS_DB_HOST=54.166.220.66
+Environment=AWS_DB_PORT=5432
+Environment=AWS_DB_NAME=smart_irrigation
+Environment=AWS_DB_USER=postgres
+Environment=AWS_DB_PASS=FloraSenseSecure2026!
+Environment=LOCAL_DB_HOST=localhost
+Environment=LOCAL_DB_PORT=5432
+Environment=LOCAL_DB_NAME=smart_irrigation
+Environment=LOCAL_DB_USER=postgres
+Environment=LOCAL_DB_PASS=postgres
 
 [Install]
 WantedBy=multi-user.target

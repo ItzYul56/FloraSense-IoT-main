@@ -78,8 +78,32 @@ export class AppService {
     if (action === 'ON') {
       await this.rulesService.triggerPump(deviceId, durationSeconds, 'MANUAL', userName);
     } else {
-      // Necesitamos una funciÃ³n para enviar OFF
       await this.rulesService.stopPump(deviceId, 'MANUAL');
+    }
+
+    // Actualizar inmediatamente la última telemetría en AWS para respuesta instantánea en el dashboard
+    try {
+      const lastTelemetry = await this.prisma.telemetry.findFirst({
+        where: { deviceId: device.id },
+        orderBy: { recordedAt: 'desc' }
+      });
+      if (lastTelemetry) {
+        await this.prisma.telemetry.create({
+          data: {
+            deviceId: device.id,
+            temperatureC: lastTelemetry.temperatureC,
+            airHumidityPct: lastTelemetry.airHumidityPct,
+            soilMoistureRaw: lastTelemetry.soilMoistureRaw,
+            soilMoisturePct: lastTelemetry.soilMoisturePct,
+            pumpOn: action === 'ON',
+            fanOn: lastTelemetry.fanOn,
+            rssi: lastTelemetry.rssi,
+            payloadVersion: 1,
+          }
+        });
+      }
+    } catch (e) {
+      // Ignorar si falla la telemetría auxiliar
     }
 
     return { success: true, action, deviceId };
