@@ -13,6 +13,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d smart_irrigation"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -32,30 +37,55 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    command: sh -c "if [ -f apps/api/package.json ]; then npm run start:dev -w apps/api; else sleep infinity; fi"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    command: >
+      sh -c "
+        if [ ! -d 'node_modules' ] || [ ! -f 'node_modules/.bin/nest' ]; then
+          echo '📦 Instalando dependencias del Monorepo en Docker...';
+          npm install;
+        fi;
+        echo '🔄 Generando cliente de Prisma...';
+        npx prisma generate --schema=apps/api/prisma/schema.prisma;
+        echo '🚀 Sincronizando base de datos...';
+        npx prisma db push --schema=apps/api/prisma/schema.prisma --accept-data-loss;
+        echo '🌟 Iniciando NestJS API...';
+        npm run start:dev -w apps/api;
+      "
     ports:
       - "3001:3001"
-    depends_on:
-      - postgres
-      - mosquitto
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/smart_irrigation?schema=public
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3001
+    restart: unless-stopped
 
   prisma_studio:
     image: node:20-alpine
     container_name: smart_irrigation_studio
-    working_dir: /app/apps/api
+    working_dir: /app
     volumes:
       - .:/app
-    command: npx prisma studio
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    command: >
+      sh -c "
+        while [ ! -f 'node_modules/.bin/prisma' ]; do
+          sleep 3;
+        done;
+        npx prisma studio --schema=apps/api/prisma/schema.prisma --port 5555 --hostname 0.0.0.0;
+      "
     ports:
       - "5555:5555"
-    depends_on:
-      - postgres
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/smart_irrigation?schema=public
+    restart: unless-stopped
 
   web:
     image: node:20-alpine
@@ -63,11 +93,22 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    command: sh -c "if [ -f apps/web/package.json ]; then npm run dev -w apps/web; else sleep infinity; fi"
+    depends_on:
+      - api
+    command: >
+      sh -c "
+        echo '⏳ Esperando a que terminen de instalarse las dependencias...';
+        while [ ! -f 'node_modules/.bin/next' ] && [ ! -f 'apps/web/node_modules/.bin/next' ]; do
+          sleep 3;
+        done;
+        echo '🌟 Iniciando Next.js Web en puerto 3000...';
+        npm run dev -w apps/web;
+      "
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+    restart: unless-stopped
 
 volumes:
   pgdata:

@@ -294,8 +294,8 @@ sudo systemctl restart mosquitto
 En el código original, el NodeMCU enviaba telemetría cada 10 segundos. Lo ajustamos a **1 segundo exacto (1000 ms)**.
 
 ### Paso 4.1: Código C++ del Firmware (`esp8266_florasense_1hz.ino`)
-Abre Arduino IDE y carga el archivo ubicado en:
-`firmware/esp8266_florasense/esp8266_florasense_1hz.ino`.
+Abre Arduino IDE y carga el archivo que hemos generado en:
+[`firmware/esp8266_florasense/esp8266_florasense_1hz.ino`](file:///c:/Users/yulia/Downloads/FloraSense-IoT-main/FloraSense-IoT-main/firmware/esp8266_florasense/esp8266_florasense_1hz.ino).
 
 Verifica y ajusta los siguientes parámetros al inicio del archivo:
 
@@ -329,7 +329,7 @@ const unsigned long TELEMETRY_INTERVAL_MS = 1000;
 Dependiendo de cómo conectes el NodeMCU a la Raspberry Pi, utiliza uno de los dos métodos:
 
 ### Opción A: Vía Wi-Fi con el Colector MQTT Local (Recomendado)
-El script `scripts/rpi/rpi_mqtt_collector.py` escucha el tópico `iot/v1/devices/+/telemetry` e inserta la telemetría cada segundo en PostgreSQL local.
+El script [`rpi_mqtt_collector.py`](file:///c:/Users/yulia/Downloads/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/rpi_mqtt_collector.py) escucha el tópico `iot/v1/devices/+/telemetry` e inserta la telemetría cada segundo en PostgreSQL local.
 
 Crear servicio systemd para que arranque solo:
 ```bash
@@ -359,7 +359,7 @@ sudo systemctl enable --now florasense-collector
 ```
 
 ### Opción B: Vía Cable USB Serial Directo
-Si prefieres no usar Wi-Fi entre el NodeMCU y la Raspberry Pi, conecta el NodeMCU por USB al puerto de la Raspberry Pi y usa `scripts/rpi/rpi_serial_collector.py`:
+Si prefieres no usar Wi-Fi entre el NodeMCU y la Raspberry Pi, conecta el NodeMCU por USB al puerto de la Raspberry Pi y usa [`rpi_serial_collector.py`](file:///c:/Users/yulia/Downloads/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/rpi_serial_collector.py):
 
 ```bash
 # Dar permisos de lectura serial al usuario pi
@@ -380,7 +380,7 @@ Verás que cada fila tiene una diferencia exacta de **1 segundo**.
 
 ## 🔄 6. Fase 5: Servicio de Sincronización Raspberry Pi ➔ AWS EC2 (Cada 5 min o 5 seg)
 
-El script `scripts/rpi/florasense_sync_to_aws.py` es el encargado de transferir los datos acumulados a AWS.
+El script [`florasense_sync_to_aws.py`](file:///c:/Users/yulia/Downloads/FloraSense-IoT-main/FloraSense-IoT-main/scripts/rpi/florasense_sync_to_aws.py) es el encargado de transferir los datos acumulados a AWS.
 
 ### Paso 6.1: Configuración del Intervalo de Sincronización
 Edita el archivo del servicio en la Raspberry Pi:
@@ -513,3 +513,25 @@ sudo systemctl restart mosquitto
 
 ### P4: En la Raspberry Pi, `ls /dev/ttyUSB0` da "No such file or directory".
 **Solución:** En algunos NodeMCU el chip serie es CH340 o CP2102 y puede llamarse `/dev/ttyUSB1` o `/dev/ttyACM0`. Ejecuta `ls /dev/tty*` antes y después de conectar el cable USB para identificar el nombre exacto.
+
+### P5: Los contenedores `api` y `web` están en bucle de reinicio `Restarting (1)` y `Restarting (127)`.
+**Causa:** 
+- `Restarting (127)` en Linux significa **Command not found** (`next: not found`).
+- `Restarting (1)` significa que `nest` o `prisma` fallaron porque al clonar el repositorio en una máquina nueva, la carpeta `node_modules` no existe o no tiene los binarios para Linux.
+
+**Solución Inmediata (en 2 pasos):**
+1. Detén los contenedores caídos:
+   ```bash
+   docker compose -f docker-compose.prod.yml down
+   ```
+2. Instala las dependencias del monorepo dentro del contenedor de Node (para que se compilen para Linux):
+   ```bash
+   docker compose -f docker-compose.prod.yml run --rm api npm install
+   ```
+3. Genera Prisma y levanta el clúster:
+   ```bash
+   docker compose -f docker-compose.prod.yml run --rm api npx prisma generate --schema=apps/api/prisma/schema.prisma
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+4. Comprueba de nuevo con `docker compose -f docker-compose.prod.yml ps`: todos los contenedores estarán en estado `Up`.
+

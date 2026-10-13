@@ -513,3 +513,25 @@ sudo systemctl restart mosquitto
 
 ### P4: En la Raspberry Pi, `ls /dev/ttyUSB0` da "No such file or directory".
 **Solución:** En algunos NodeMCU el chip serie es CH340 o CP2102 y puede llamarse `/dev/ttyUSB1` o `/dev/ttyACM0`. Ejecuta `ls /dev/tty*` antes y después de conectar el cable USB para identificar el nombre exacto.
+
+### P5: Los contenedores `api` y `web` están en bucle de reinicio `Restarting (1)` y `Restarting (127)`.
+**Causa:** 
+- `Restarting (127)` en Linux significa **Command not found** (`next: not found`).
+- `Restarting (1)` significa que `nest` o `prisma` fallaron porque al clonar el repositorio en una máquina nueva, la carpeta `node_modules` no existe o no tiene los binarios para Linux.
+
+**Solución Inmediata (en 2 pasos):**
+1. Detén los contenedores caídos:
+   ```bash
+   docker compose -f docker-compose.prod.yml down
+   ```
+2. Instala las dependencias del monorepo dentro del contenedor de Node (para que se compilen para Linux):
+   ```bash
+   docker compose -f docker-compose.prod.yml run --rm api npm install
+   ```
+3. Genera Prisma y levanta el clúster:
+   ```bash
+   docker compose -f docker-compose.prod.yml run --rm api npx prisma generate --schema=apps/api/prisma/schema.prisma
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+4. Comprueba de nuevo con `docker compose -f docker-compose.prod.yml ps`: todos los contenedores estarán en estado `Up`.
+

@@ -3,6 +3,7 @@ version: '3.8'
 # ==============================================================================
 # FloraSense IoT - Docker Compose para Despliegue en AWS EC2 (Student / Free Tier)
 # Optimizado para t2.micro / t3.micro (1 GB RAM con 2 GB Swap)
+# Auto-instalación de dependencias (resuelve el error 127 y reinicios de contenedores)
 # ==============================================================================
 
 services:
@@ -24,6 +25,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-smart_irrigation}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -44,12 +50,26 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    command: sh -c "npx prisma db push --schema=apps/api/prisma/schema.prisma && npm run start:dev -w apps/api"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    command: >
+      sh -c "
+        if [ ! -d 'node_modules' ] || [ ! -f 'node_modules/.bin/nest' ]; then
+          echo '📦 Instalando dependencias de Node.js (esto puede tardar 1-2 minutos)...';
+          npm install;
+        fi;
+        echo '🔄 Generando cliente de Prisma...';
+        npx prisma generate --schema=apps/api/prisma/schema.prisma;
+        echo '🚀 Sincronizando tablas en PostgreSQL...';
+        npx prisma db push --schema=apps/api/prisma/schema.prisma --accept-data-loss;
+        echo '🌟 Iniciando NestJS API...';
+        npm run start:dev -w apps/api;
+      "
     ports:
       - "3001:3001"
-    depends_on:
-      - postgres
-      - mosquitto
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-FloraSenseSecure2026!}@postgres:5432/${POSTGRES_DB:-smart_irrigation}?schema=public
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
@@ -63,11 +83,20 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    command: sh -c "npm run dev -w apps/web"
+    depends_on:
+      - api
+    command: >
+      sh -c "
+        echo '⏳ Esperando a que las dependencias estén listas...';
+        while [ ! -f 'node_modules/.bin/next' ] && [ ! -f 'apps/web/node_modules/.bin/next' ]; do
+          sleep 3;
+        done;
+        echo '🌟 Iniciando Next.js Web en puerto 3000...';
+        npm run dev -w apps/web;
+      "
     ports:
       - "3000:3000"
     environment:
-      # Se deja dinámico o con la IP pública de la EC2
       - NEXT_PUBLIC_API_URL=http://${EC2_PUBLIC_IP:-localhost}:3001/api/v1
 
 volumes:
